@@ -103,8 +103,6 @@ def percent(current, target):
         result += '(-'+str(int(target-current))+')'
     elif target < current:
         result += '(+'+str(int(current-target))+')'
-    elif target//current * current//target == 1:
-        result += "=done"
     return result
 
 def items():
