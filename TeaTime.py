@@ -1,5 +1,5 @@
 """
-TeaTime, 2025-10-04
+TeaTime
 Licenes: there isn't any
 """
 
