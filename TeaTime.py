@@ -3,7 +3,7 @@ TeaTime, 2025-10-04
 Licenes: there isn't any
 """
 
-import time, json
+import time, json, os
 from pathlib import Path
 from enum import Enum
 
@@ -32,8 +32,9 @@ file        = File()
 
 class TargetsFile:
     def __init__(self):
-        self.filename = "@targets.json"
-        with open(file.folder + '/' + self.filename, "r+", encoding="utf-8-sig") as f:
+        self.filename = file.folder + '/' + "@targets.json"
+        open(self.filename, "a+").close()
+        with open(self.filename, "r", encoding="utf-8-sig") as f:
             fileContent = f.read().strip()
             if fileContent:
                 self.targets = json.loads(fileContent)
