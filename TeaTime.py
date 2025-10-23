@@ -13,9 +13,34 @@ class File:
         Path(self.folder).mkdir(exist_ok=True)
         self.today = time.strftime("%Y-%m-%d")
         self.file = open(self.folder + '/' + self.today + ".txt", "a+")
+    def refresh(self):
+        now = time.strftime("%Y-%m-%d")
+        if now != self.today:
+            self.file.close()
+            self.today = now
+            self.file = open(self.folder + '/' + self.today + ".txt", "a+")
+            return True
+        return False
     def save(self, task):
-        self.file.write(f"{task.start:.0f} {task.end:.0f} {task.desc}\n")
-        self.file.flush()
+        segments = []
+        start = float(task.start)
+        end = float(task.end)
+        cur = start
+        while cur < end:
+            lt = time.localtime(cur)
+            day_midnight = time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday,
+                                       0, 0, 0, lt.tm_wday, lt.tm_yday, lt.tm_isdst))
+            next_midnight = day_midnight + 86400
+            seg_end = end if end <= next_midnight else next_midnight
+            date_str = time.strftime("%Y-%m-%d", time.localtime(cur))
+            filename = self.folder + '/' + date_str + ".txt"
+            with open(filename, "a+") as f:
+                f.write(f"{cur:.0f} {seg_end:.0f} {task.desc}\n")
+                f.flush()
+            seg_dura = int(seg_end) - int(cur)
+            segments.append((date_str, cur, seg_end, seg_dura))
+            cur = seg_end
+        return segments
     def load(self):
         self.file.seek(0)
         tasks = []
@@ -110,8 +135,14 @@ def items():
     result = [["Description", "Total", "Today"]]
     sorted_items = sorted(db.dictionary.items(), key=lambda x: x[1][1], reverse=True)
     for desc, tasks_and_dura in sorted_items:
-        today_perc = (tasks_and_dura[2]/today_time*100)
-        total_perc = (tasks_and_dura[1]/total_time*100)
+        if today_time == 0:
+            today_perc = 0.0
+        else:
+            today_perc = (tasks_and_dura[2]/today_time*100)
+        if total_time == 0:
+            total_perc = 0.0
+        else:
+            total_perc = (tasks_and_dura[1]/total_time*100)
         
         target = targets.get(desc)
         today = percent(today_perc, target)
@@ -127,10 +158,10 @@ def start_of_a_task():
             0, 0, 0, start.tm_wday, start.tm_yday, start.tm_isdst))
     else:
         # or end of last event as start of a new
-        start = int(db.tasks[len(db.tasks)-1].end)
+        start = int(db.tasks[-1].end)
     return start
 
-def is_valid(desc): # oogh, i know
+def is_valid(desc):
     ds = desc.split()
     if len(ds) == 1 and ds[0] != "!help":
         return True
@@ -160,11 +191,19 @@ if __name__ == "__main__":
     
     desc = ""
     while True:
+        if file.refresh():
+            today_time = 0
+            for k in db.dictionary.keys():
+                db.dictionary[k][2] = 0
+            for task in file.load():
+                today_time += task.dura
+                db.new(task, TimeProfile.TODAY)
+
         if not desc == "@help":
             print("\033[2J\033[H", end="")
+        
         rows = items()
         widths = [max(len(cell) for cell in col) for col in zip(*rows)]
-
         for i, row in enumerate(rows):
             line = " | ".join(cell.ljust(widths[j]) for j, cell in enumerate(row))
             print(line)
@@ -181,11 +220,15 @@ if __name__ == "__main__":
             help()
         elif is_valid(desc):
             curr_task = Task(start, end, desc)
+            segments = file.save(curr_task)
             total_time += curr_task.dura
-            today_time += curr_task.dura
-            db.new(curr_task, TimeProfile.TODAY)
             db.new(curr_task, TimeProfile.TOTAL)
-            file.save(curr_task)
+            today_str = time.strftime("%Y-%m-%d")
+            for date_str, s_start, s_end, s_dura in segments:
+                if date_str == today_str:
+                    today_time += s_dura
+                    seg_task = Task(s_start, s_end, desc)
+                    db.new(seg_task, TimeProfile.TODAY)
         else:
             command(desc)
         
