@@ -67,7 +67,7 @@ class TargetsFile:
                 self.targets = dict()
     def update(self, target, value):
         self.targets[target] = value
-        with open(file.folder + '/' + self.filename, "w", encoding="utf-8-sig") as f:
+        with open(self.filename, "w", encoding="utf-8-sig") as f:
             f.seek(0)
             json.dump(self.targets, f, indent=4)
             f.flush()
